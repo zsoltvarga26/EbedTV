@@ -1,0 +1,16 @@
+[build]
+  command = "yarn build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Biztonsági fejlécek. A YouTube beágyazáshoz és a miniatűrökhöz kell a két kivétel.
+# A WebRTC (P2P) kapcsolatot a CSP nem korlátozza.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://i.ytimg.com; frame-src https://www.youtube-nocookie.com; connect-src 'self'; base-uri 'self'; object-src 'none'"
