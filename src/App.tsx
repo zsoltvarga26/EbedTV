@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { Chat, type ChatItem } from "./components/Chat";
 import { AddBar } from "./components/AddBar";
 import { Header } from "./components/Header";
 import { Player } from "./components/Player";
@@ -9,7 +10,10 @@ import { useRoom, describeRoom } from "./hooks/useRoom";
 import { useTheme } from "./hooks/useTheme";
 import { useToasts } from "./hooks/useToasts";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
+import { randomName } from "./lib/identity";
 import { MAX_QUEUE, type Msg } from "./lib/protocol";
+
+type DistributiveOmit<T, K extends keyof never> = T extends unknown ? Omit<T, K> : never;
 
 export default function App() {
   const { toasts, push } = useToasts();
@@ -40,6 +44,30 @@ export default function App() {
       if (i + 1 < list.length) select(i + 1);
     },
   });
+
+  /* ---------- chat (csak memóriában) ---------- */
+  const [name, setName] = useState(randomName);
+  const nameRef = useRef(name);
+  nameRef.current = name;
+  const [chat, setChat] = useState<ChatItem[]>([]);
+  const chatId = useRef(0);
+  const addChat = (item: DistributiveOmit<ChatItem, "id">) =>
+    setChat((c) => [...c, { ...item, id: ++chatId.current } as ChatItem].slice(-200));
+
+  const sendChat = (text: string) => {
+    addChat({ kind: "msg", name: nameRef.current, text, mine: true });
+    send({ t: "chat", name: nameRef.current, text });
+  };
+
+  const rename = (next: string) => {
+    const old = nameRef.current;
+    setName(next);
+    nameRef.current = next;
+    addChat({ kind: "sys", text: `Új neved: ${next}` });
+    // A host maga hirdeti a névváltást, a vendég a hostnak jelzi.
+    if (room.role === "host") send({ t: "presence", kind: "rename", name: next, old });
+    else send({ t: "nick", name: next });
+  };
 
   /* ---------- lista műveletek (helyi) ---------- */
   const broadcastQueue = (load: boolean) =>
@@ -129,6 +157,20 @@ export default function App() {
         }
         break;
       }
+      case "chat":
+        addChat({ kind: "msg", name: m.name, text: m.text, mine: false });
+        break;
+      case "presence": {
+        const text =
+          m.kind === "join"
+            ? `${m.name} csatlakozott`
+            : m.kind === "leave"
+              ? `${m.name} kilépett`
+              : `${m.old ?? "Valaki"} új neve: ${m.name}`;
+        addChat({ kind: "sys", text });
+        if (m.kind !== "rename") push(text);
+        break;
+      }
       case "hello": {
         const st = currentState();
         if (st) reply(st);
@@ -148,7 +190,7 @@ export default function App() {
         }
       : null;
 
-  const room = useRoom({ onMessage: handleMessage, getState: currentState, notify: push });
+  const room = useRoom({ onMessage: handleMessage, getState: currentState, getName: () => nameRef.current, notify: push });
   sendRef.current = room.send;
 
   return (
@@ -162,7 +204,10 @@ export default function App() {
           <p className="hint">A lista csak a munkamenet idejére él: oldalfrissítés után eltűnik, sehova nem mentjük.</p>
         </section>
 
-        <Queue queue={queue} index={index} onSelect={select} onRemove={removeAt} onClear={clearAll} />
+        <div className="side">
+          <Queue queue={queue} index={index} onSelect={select} onRemove={removeAt} onClear={clearAll} />
+          <Chat items={chat} myName={name} onSend={sendChat} onRename={rename} />
+        </div>
       </main>
 
       <RoomDialog open={roomOpen} onClose={() => setRoomOpen(false)} room={room} notify={push} />
