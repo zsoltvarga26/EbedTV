@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { parseMsg, type Msg } from "../lib/protocol";
+import { makeLimiter, parseMsg, type Msg } from "../lib/protocol";
 
 export type Role = "host" | "guest" | null;
 type Reply = (m: Msg) => void;
@@ -7,6 +7,10 @@ type Reply = (m: Msg) => void;
 interface Peer {
   pc: RTCPeerConnection;
   dc: RTCDataChannel;
+  /** A vendég neve; a `hello` üzenettel érkezik, a host ezt írja a vendég üzeneteire. */
+  name?: string;
+  /** Reakció-korlát vendégenként, hogy ne lehessen elárasztani a többieket. */
+  allowReact: () => boolean;
 }
 
 export interface RoomOptions {
@@ -14,6 +18,8 @@ export interface RoomOptions {
   onMessage: (m: Msg, reply: Reply) => void;
   /** Az aktuális állapot, amit új vendégnek küldünk (null, ha nincs mit). */
   getState: () => Msg | null;
+  /** A saját megjelenítendő nevünk (a belépéskor küldjük el). */
+  getName: () => string;
   notify: (text: string, kind?: "info" | "error") => void;
 }
 
@@ -84,9 +90,16 @@ export function useRoom(options: RoomOptions) {
     };
     bc.current = ch;
     setLocalCode(code);
-    ch.postMessage({ t: "hello" } satisfies Msg);
+    ch.postMessage({ t: "hello", name: opts.current.getName() } satisfies Msg);
     opts.current.notify("Belépve a helyi szobába: " + code);
     return code;
+  }, []);
+
+  /** Host: jelenlét-üzenet mindenkinek (vendégeknek hálózaton, magának helyben). */
+  const announce = useCallback((m: Msg) => {
+    const s = JSON.stringify(m);
+    peers.current.forEach((p) => p.dc.readyState === "open" && p.dc.send(s));
+    opts.current.onMessage(m, () => {});
   }, []);
 
   /* ---------- P2P: host oldal ---------- */
@@ -96,7 +109,7 @@ export function useRoom(options: RoomOptions) {
 
     const pc = new RTCPeerConnection(iceConfig(lanOnly));
     const dc = pc.createDataChannel("kozos-mozi");
-    const peer: Peer = { pc, dc };
+    const peer: Peer = { pc, dc, allowReact: makeLimiter(5, 1000) };
     pending.current = peer;
 
     dc.onopen = () => {
@@ -106,27 +119,60 @@ export function useRoom(options: RoomOptions) {
       setRole("host");
       const st = opts.current.getState();
       if (st) dc.send(JSON.stringify(st));
-      opts.current.notify("Új vendég csatlakozott.");
+    };
+    const relay = (m: Msg) => {
+      const s = JSON.stringify(m);
+      peers.current.forEach((o) => o !== peer && o.dc.readyState === "open" && o.dc.send(s));
     };
     dc.onmessage = (e) => {
       const m = parseMsg(e.data);
       if (!m) return;
-      opts.current.onMessage(m, (r) => dc.send(JSON.stringify(r)));
-      if (m.t !== "hello") {
-        peers.current.forEach((o) => o !== peer && o.dc.readyState === "open" && o.dc.send(e.data as string));
+      switch (m.t) {
+        case "hello": {
+          const first = peer.name === undefined;
+          peer.name = m.name ?? peer.name ?? "Vendég";
+          opts.current.onMessage(m, (r) => dc.send(JSON.stringify(r)));
+          if (first) announce({ t: "presence", kind: "join", name: peer.name });
+          break;
+        }
+        case "nick": {
+          const old = peer.name ?? "Vendég";
+          if (m.name === old) break;
+          peer.name = m.name;
+          announce({ t: "presence", kind: "rename", name: m.name, old });
+          break;
+        }
+        case "chat": {
+          // A feladó nevét a host állapítja meg, a vendég saját állítását eldobjuk.
+          const stamped: Msg = { t: "chat", name: peer.name ?? "Vendég", text: m.text };
+          opts.current.onMessage(stamped, () => {});
+          relay(stamped);
+          break;
+        }
+        case "react":
+          if (!peer.allowReact()) break;
+          opts.current.onMessage(m, () => {});
+          relay(m);
+          break;
+        case "presence":
+          break; // vendég nem küldhet jelenlétet
+        default:
+          opts.current.onMessage(m, (r) => dc.send(JSON.stringify(r)));
+          relay(m);
       }
     };
     dc.onclose = () => {
+      const wasOpen = peers.current.includes(peer);
       peers.current = peers.current.filter((o) => o !== peer);
       setPeerCount(peers.current.length);
       if (!peers.current.length) setRole((r) => (r === "host" ? null : r));
-      opts.current.notify("Egy vendég kilépett.");
+      if (wasOpen) announce({ t: "presence", kind: "leave", name: peer.name ?? "Vendég" });
     };
 
     await pc.setLocalDescription(await pc.createOffer());
     await waitIce(pc);
     return encode(pc.localDescription!);
-  }, []);
+  }, [announce]);
 
   const hostFinish = useCallback(async (answer: string) => {
     if (!pending.current) throw new Error("Előbb generálj meghívó kódot.");
@@ -152,7 +198,7 @@ export function useRoom(options: RoomOptions) {
       dc.onopen = () => {
         guestDc.current = dc;
         setRole("guest");
-        dc.send(JSON.stringify({ t: "hello" } satisfies Msg));
+        dc.send(JSON.stringify({ t: "hello", name: opts.current.getName() } satisfies Msg));
         opts.current.notify("Csatlakoztál a hosthoz.");
       };
       dc.onmessage = (ev) => {

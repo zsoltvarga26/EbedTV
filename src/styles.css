@@ -67,6 +67,21 @@ button { cursor: pointer; }
 .empty p { margin: 0; max-width: 34ch; font-size: 0.95rem; }
 .hint { margin: 14px 4px 0; color: var(--muted); font-size: 0.85rem; }
 
+/* reactions */
+.floats { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+.float { position: absolute; bottom: 8px; font-size: 2rem; line-height: 1; transform: translateX(-50%);
+  animation: float-up 2.8s ease-out forwards; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
+@keyframes float-up {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  12% { opacity: 1; transform: translate(-50%, -20px) scale(1.1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--drift, 0px)), -260px) scale(1); }
+}
+.reactions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.react-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 12px;
+  font-size: 1.25rem; line-height: 1; transition: 0.12s; }
+.react-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+.react-btn:active { transform: scale(0.92); }
+
 /* queue */
 .queue { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow);
   overflow: hidden; display: flex; flex-direction: column; max-height: calc(100vh - 120px); min-height: 240px; }
@@ -90,6 +105,40 @@ button { cursor: pointer; }
 .qdel:hover { background: var(--surface-2); color: var(--danger); }
 .q-empty { padding: 28px 20px; text-align: center; color: var(--muted); font-size: 0.9rem; }
 .q-foot { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+
+/* side column */
+.side { display: grid; gap: 18px; min-width: 0; }
+.side .queue { max-height: 42vh; }
+
+/* chat */
+.chat { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow);
+  overflow: hidden; display: flex; flex-direction: column; }
+.chat-head { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 18px; background: none; border: 0; text-align: left; }
+.chat-head h3 { margin: 0; font-size: 1rem; flex: 1; }
+.chat-head .chev { color: var(--muted); }
+.badge { background: var(--danger); color: #fff; font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+.chat-me { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.chat-me input { flex: 1; min-width: 0; border: 1px solid transparent; background: var(--surface-2); border-radius: 10px;
+  padding: 6px 10px; font-size: 0.88rem; outline: none; }
+.chat-me input:focus { border-color: var(--accent); }
+.avatar { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  font-size: 0.8rem; font-weight: 700; }
+.chat-list { height: 280px; overflow: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.msg { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; }
+.msg.grouped { margin-top: -4px; }
+.msg.grouped .avatar { visibility: hidden; }
+.msg.mine { align-self: flex-end; flex-direction: row-reverse; }
+.bubble { background: var(--surface-2); border-left: 3px solid var(--border); border-radius: 14px; padding: 6px 12px; min-width: 0; }
+.msg.mine .bubble { background: var(--accent-soft); border-left: 0; border-right: 3px solid var(--accent); }
+.who { display: block; font-size: 0.74rem; }
+.msg.mine .who { color: var(--accent); text-align: right; }
+.txt { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.9rem; }
+.sys { align-self: center; color: var(--muted); font-size: 0.78rem; background: var(--surface-2); padding: 2px 12px; border-radius: 999px; }
+.chat-form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--border); }
+.chat-form input { flex: 1; min-width: 0; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--surface); outline: none; }
+.chat-form input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.chat-form .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 
 /* dialog */
 dialog { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 22px; padding: 0;
@@ -124,7 +173,7 @@ label.chk { display: flex; gap: 8px; align-items: center; font-size: 0.85rem; co
 
 @media (max-width: 960px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
-  .queue { max-height: none; }
+  .queue, .side .queue { max-height: none; }
 }
 @media (max-width: 520px) {
   .wrap { padding: 0 12px 30px; }
