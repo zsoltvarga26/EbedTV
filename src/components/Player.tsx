@@ -1,13 +1,15 @@
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 
 interface Props {
   iframeRef: RefObject<HTMLIFrameElement>;
   src: string | null;
   nonce: number;
   onLoad: () => void;
+  /** A lejátszó fölé rétegzett tartalom (pl. lebegő reakciók). */
+  overlay?: ReactNode;
 }
 
-export function Player({ iframeRef, src, nonce, onLoad }: Props) {
+export function Player({ iframeRef, src, nonce, onLoad, overlay }: Props) {
   return (
     <div className={"player" + (src ? " has" : "")}>
       {src && (
@@ -32,6 +34,7 @@ export function Player({ iframeRef, src, nonce, onLoad }: Props) {
           <p>Másold be egy YouTube videó linkjét fent, és már indulhat is a vetítés.</p>
         </div>
       )}
+      {overlay}
     </div>
   );
 }

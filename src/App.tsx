@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Chat, type ChatItem } from "./components/Chat";
 import { AddBar } from "./components/AddBar";
+import { FloatLayer, ReactionBar, useFloaters } from "./components/Reactions";
 import { Header } from "./components/Header";
 import { Player } from "./components/Player";
 import { Queue } from "./components/Queue";
@@ -11,7 +12,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useToasts } from "./hooks/useToasts";
 import { useYouTubePlayer } from "./hooks/useYouTubePlayer";
 import { randomName } from "./lib/identity";
-import { MAX_QUEUE, type Msg } from "./lib/protocol";
+import { MAX_QUEUE, makeLimiter, type Msg } from "./lib/protocol";
 
 type DistributiveOmit<T, K extends keyof never> = T extends unknown ? Omit<T, K> : never;
 
@@ -67,6 +68,15 @@ export default function App() {
     // A host maga hirdeti a névváltást, a vendég a hostnak jelzi.
     if (room.role === "host") send({ t: "presence", kind: "rename", name: next, old });
     else send({ t: "nick", name: next });
+  };
+
+  /* ---------- reakciók ---------- */
+  const { floaters, add: addFloater } = useFloaters();
+  const allowReact = useRef(makeLimiter(5, 1000)).current;
+  const react = (emoji: string) => {
+    if (!allowReact()) return;
+    addFloater(emoji);
+    send({ t: "react", emoji });
   };
 
   /* ---------- lista műveletek (helyi) ---------- */
@@ -157,6 +167,9 @@ export default function App() {
         }
         break;
       }
+      case "react":
+        addFloater(m.emoji);
+        break;
       case "chat":
         addChat({ kind: "msg", name: m.name, text: m.text, mine: false });
         break;
@@ -200,7 +213,10 @@ export default function App() {
       <main className="layout">
         <section>
           <AddBar onAdd={addIds} notify={push} />
-          <Player iframeRef={player.iframeRef} src={player.src} nonce={player.nonce} onLoad={player.onLoad} />
+          <Player iframeRef={player.iframeRef} src={player.src} nonce={player.nonce} onLoad={player.onLoad}
+            overlay={<FloatLayer floaters={floaters} />}
+          />
+          <ReactionBar onReact={react} />
           <p className="hint">A lista csak a munkamenet idejére él: oldalfrissítés után eltűnik, sehova nem mentjük.</p>
         </section>
 

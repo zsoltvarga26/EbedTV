@@ -67,6 +67,21 @@ button { cursor: pointer; }
 .empty p { margin: 0; max-width: 34ch; font-size: 0.95rem; }
 .hint { margin: 14px 4px 0; color: var(--muted); font-size: 0.85rem; }
 
+/* reactions */
+.floats { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+.float { position: absolute; bottom: 8px; font-size: 2rem; line-height: 1; transform: translateX(-50%);
+  animation: float-up 2.8s ease-out forwards; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5); }
+@keyframes float-up {
+  0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+  12% { opacity: 1; transform: translate(-50%, -20px) scale(1.1); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--drift, 0px)), -260px) scale(1); }
+}
+.reactions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.react-btn { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 6px 12px;
+  font-size: 1.25rem; line-height: 1; transition: 0.12s; }
+.react-btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+.react-btn:active { transform: scale(0.92); }
+
 /* queue */
 .queue { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; box-shadow: var(--shadow);
   overflow: hidden; display: flex; flex-direction: column; max-height: calc(100vh - 120px); min-height: 240px; }

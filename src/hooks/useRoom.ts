@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { parseMsg, type Msg } from "../lib/protocol";
+import { makeLimiter, parseMsg, type Msg } from "../lib/protocol";
 
 export type Role = "host" | "guest" | null;
 type Reply = (m: Msg) => void;
@@ -9,6 +9,8 @@ interface Peer {
   dc: RTCDataChannel;
   /** A vendég neve; a `hello` üzenettel érkezik, a host ezt írja a vendég üzeneteire. */
   name?: string;
+  /** Reakció-korlát vendégenként, hogy ne lehessen elárasztani a többieket. */
+  allowReact: () => boolean;
 }
 
 export interface RoomOptions {
@@ -107,7 +109,7 @@ export function useRoom(options: RoomOptions) {
 
     const pc = new RTCPeerConnection(iceConfig(lanOnly));
     const dc = pc.createDataChannel("kozos-mozi");
-    const peer: Peer = { pc, dc };
+    const peer: Peer = { pc, dc, allowReact: makeLimiter(5, 1000) };
     pending.current = peer;
 
     dc.onopen = () => {
@@ -147,6 +149,11 @@ export function useRoom(options: RoomOptions) {
           relay(stamped);
           break;
         }
+        case "react":
+          if (!peer.allowReact()) break;
+          opts.current.onMessage(m, () => {});
+          relay(m);
+          break;
         case "presence":
           break; // vendég nem küldhet jelenlétet
         default:

@@ -27,12 +27,19 @@ yarn preview
 - P2P szobában a feladó nevét a **host** írja az üzenetre a kapcsolat alapján, a vendég nem adhatja ki magát másnak. Csatlakozás, kilépés és névváltás rendszersorként jelenik meg.
 - Ha a chat panel összecsukott, a fejlécén olvasatlan számláló látszik.
 
+## Reakciók
+
+- A lejátszó alatti gombokkal (👍 ❤️ 😂 😮 👏 🔥 👀) emoji küldhető, ami mindenkinél felúszik a lejátszó fölött. Csak az emoji jelenik meg, név nélkül.
+- Csak a fix lista (`REACTIONS` a `protocol.ts`-ben) fogadható el, bármi mást a `parseMsg` eldob.
+- Korlát: küldőnként legfeljebb 5 reakció/másodperc (a host a vendégeket is korlátozza), és legfeljebb 30 egyidejű lebegő emoji.
+- A réteg a beágyazott YouTube-lejátszó fölött van, ezért a lejátszó saját teljes képernyős módjában nem látszik.
+
 ## Struktúra
 
 ```
 src/
   App.tsx                    lista + szinkron logika összefogása
-  components/                Header, AddBar, Player, Queue, Chat, RoomDialog, Toasts
+  components/                Header, AddBar, Player, Queue, Chat, Reactions, RoomDialog, Toasts
   hooks/
     useYouTubePlayer.ts      iframe vezérlés, események, visszacsatolás-védelem
     useRoom.ts               BroadcastChannel + WebRTC
